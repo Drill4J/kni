@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 
 }
-group = "com.epam.drill.kni"
+
 repositories {
     jcenter()
 }
