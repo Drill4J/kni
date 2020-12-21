@@ -1,11 +1,13 @@
 plugins {
-    `kotlin-dsl`
+    kotlin("jvm")
     `java-gradle-plugin`
     `maven-publish`
 }
 
-
 val scriptUrl: String by extra
+val kotlinVersion: String by extra
+val kotlinPoetVersion: String by extra
+val bcelVersion: String by extra
 
 allprojects {
     apply(from = "$scriptUrl/git-version.gradle.kts")
@@ -19,13 +21,12 @@ allprojects {
 
 dependencies {
     implementation(gradleApi())
-    implementation(kotlin("stdlib-jdk8"))
-    implementation(kotlin("gradle-plugin"))
-    implementation("com.squareup:kotlinpoet:1.6.0")
-    implementation("org.apache.bcel:bcel:6.0")
+    implementation(kotlin("gradle-plugin", kotlinVersion))
+    implementation("com.squareup:kotlinpoet:$kotlinPoetVersion")
+    implementation("org.apache.bcel:bcel:$bcelVersion")
     implementation(project(":runtime"))
-    testImplementation(kotlin("test"))
-    testImplementation(kotlin("test-junit"))
+    testImplementation(kotlin("test", kotlinVersion))
+    testImplementation(kotlin("test-junit", kotlinVersion))
     testImplementation(gradleTestKit())
 }
 
@@ -33,6 +34,7 @@ tasks {
 
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.freeCompilerArgs += "-Xuse-experimental=kotlin.ExperimentalUnsignedTypes"
     }
 }
 

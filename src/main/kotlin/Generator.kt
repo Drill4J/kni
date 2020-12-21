@@ -34,91 +34,96 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
         processedClasses.add(jvmClass.className)
 
         FileSpec.builder(jvmClass.packageName, objName)
-                .addType(
-                        jvmClass
-                                .defineType(objName)
-                                .addClassProperty(className)
-                                .addSelfMethodProperty(className, jvmClass)
-                                .addMethodFields(jvmClass)
-                                .addInitializeBlock(jvmClass)
-                                .addMethods(jvmClass.staticMethods(), jvmClass.staticFields())
-                                .addFunction(
-                                        FunSpec
-                                                .builder("self")
-                                                .returns(jobject.copy(nullable = true))
-                                                .receiver(Any::class.asTypeName())
-                                                .addStatement("return null")
-                                                .build()
-                                )
-                                .reinit(jvmClass, objName)
-                                .addObjectProperty(jvmClass)
-                                .addSelfMethod()
-                                .apply {
-                                    if (!onlyConstructorWrappers)
-                                        addMethods(jvmClass.nonStaticMethods(), jvmClass.nonStaticFields())
-                                }
-                                .build()
-                )
-                .addSimbolsForNativeCall(jvmClass)
-                .addImport("kotlin", "Unit")
-                .addImport("com.epam.drill.jvmapi", "withJSting")
-                .addImport("kotlinx.cinterop", "COpaquePointer")
-                .addImport("kotlinx.cinterop", "addressOf")
-                .addImport("kotlinx.cinterop", "convert")
-                .addImport("kotlinx.cinterop", "usePinned")
-                .addImport("kotlinx.cinterop", "toKString")
-                .addImport("kotlinx.cinterop", "invoke")
-                .addImport("kotlinx.cinterop", "get")
-                .addImport("kotlinx.cinterop", "set")
-                .addImport(japiPack, "GetStaticObjectField")
-                .addImport(japiPack, "NewObject")
-                .addImport(japiPack, "NewStringUTF")
-                .addImport(japiPack, "FindClass")
-                .addImport(japiPack, "GetStaticFieldID")
-                .addImport(japiPack, "GetMethodID")
-                .addImport(japiPack, "GetStaticMethodID")
-                .addImport(japiPack, "CallObjectMethod")
-                .addImport(japiPack, "CallStaticObjectMethod")
-                .addImport(japiPack, "GetArrayLength")
-                .addImport(japiPack, "GetPrimitiveArrayCritical")
-                .addImport(japiPack, "ReleasePrimitiveArrayCritical")
-                .addImport(japiPack, "JNI_ABORT")
-                .apply {
-                    primitiveMethodMapping.values.forEach {
-                        addImport(japiPack, it)
+            .addType(
+                jvmClass
+                    .defineType(objName)
+                    .addClassProperty(className)
+                    .addSelfMethodProperty(className, jvmClass)
+                    .addAnnotation(
+                        AnnotationSpec.builder(
+                            ClassName("kotlin.native", "ThreadLocal")
+                        ).build()
+                    )
+                    .addMethodFields(jvmClass)
+                    .addInitializeBlock(jvmClass)
+                    .addMethods(jvmClass.staticMethods(), jvmClass.staticFields())
+                    .addFunction(
+                        FunSpec
+                            .builder("self")
+                            .returns(jobject.copy(nullable = true))
+                            .receiver(Any::class.asTypeName())
+                            .addStatement("return null")
+                            .build()
+                    )
+                    .reinit(jvmClass, objName)
+                    .addObjectProperty(jvmClass)
+                    .addSelfMethod()
+                    .apply {
+                        if (!onlyConstructorWrappers)
+                            addMethods(jvmClass.nonStaticMethods(), jvmClass.nonStaticFields())
                     }
-                    primitiveStaticMethodMapping.values.forEach {
-                        addImport(japiPack, it)
-                    }
-                    primitiveReturnTypeMapping.values
-                            .filter { it != Unit::class.asTypeName() }
-                            .map { it.simpleName }.forEach { arrayType ->
-                                addImport(japiPack, "New${arrayType}Array")
-                                addImport(japiPack, "Get${arrayType}ArrayElements")
-                                addImport(japiPack, "Set${arrayType}ArrayRegion")
-                            }
-
+                    .build()
+            )
+            .addSimbolsForNativeCall(jvmClass)
+            .addImport("kotlin", "Unit")
+            .addImport("com.epam.drill.jvmapi", "withJSting")
+            .addImport("kotlinx.cinterop", "COpaquePointer")
+            .addImport("kotlinx.cinterop", "addressOf")
+            .addImport("kotlinx.cinterop", "convert")
+            .addImport("kotlinx.cinterop", "usePinned")
+            .addImport("kotlinx.cinterop", "toKString")
+            .addImport("kotlinx.cinterop", "invoke")
+            .addImport("kotlinx.cinterop", "get")
+            .addImport("kotlinx.cinterop", "set")
+            .addImport(japiPack, "GetStaticObjectField")
+            .addImport(japiPack, "NewObject")
+            .addImport(japiPack, "NewStringUTF")
+            .addImport(japiPack, "FindClass")
+            .addImport(japiPack, "GetStaticFieldID")
+            .addImport(japiPack, "GetMethodID")
+            .addImport(japiPack, "GetStaticMethodID")
+            .addImport(japiPack, "CallObjectMethod")
+            .addImport(japiPack, "CallStaticObjectMethod")
+            .addImport(japiPack, "GetArrayLength")
+            .addImport(japiPack, "GetPrimitiveArrayCritical")
+            .addImport(japiPack, "ReleasePrimitiveArrayCritical")
+            .addImport(japiPack, "JNI_ABORT")
+            .apply {
+                primitiveMethodMapping.values.forEach {
+                    addImport(japiPack, it)
                 }
+                primitiveStaticMethodMapping.values.forEach {
+                    addImport(japiPack, it)
+                }
+                primitiveReturnTypeMapping.values
+                    .filter { it != Unit::class.asTypeName() }
+                    .map { it.simpleName }.forEach { arrayType ->
+                        addImport(japiPack, "New${arrayType}Array")
+                        addImport(japiPack, "Get${arrayType}ArrayElements")
+                        addImport(japiPack, "Set${arrayType}ArrayRegion")
+                    }
 
-                .addAnnotation(
-                        AnnotationSpec.builder(Suppress::class)
-                                .addMember("\"UnusedImport\"")
-                                .addMember("\"RemoveRedundantQualifierName\"")
-                                .addMember("\"UNUSED_VARIABLE\"")
-                                .addMember("\"unused\"")
-                                .addMember("\"UNUSED_PARAMETER\"")
-                                .addMember("\"UNNECESSARY_NOT_NULL_ASSERTION\"")
-                                .addMember("\"USELESS_CAST\"")
-                                .addMember("\"UNNECESSARY_LATEINIT\"")
-                                .addMember("\"UNNECESSARY_SAFE_CALL\"")
-                                .addMember("\"USELESS_ELVIS\"")
-                                .addMember("\"UNCHECKED_CAST\"")
-                                .addMember("\"UNUSED_EXPRESSION\"")
-                                .build()
-                )
-                .addImport("kotlinx.cinterop", "invoke")
-                .build()
-                .writeTo(outputDir)
+            }
+
+            .addAnnotation(
+                AnnotationSpec.builder(Suppress::class)
+                    .addMember("\"UnusedImport\"")
+                    .addMember("\"RemoveRedundantQualifierName\"")
+                    .addMember("\"UNUSED_VARIABLE\"")
+                    .addMember("\"unused\"")
+                    .addMember("\"UNUSED_PARAMETER\"")
+                    .addMember("\"UNNECESSARY_NOT_NULL_ASSERTION\"")
+                    .addMember("\"USELESS_CAST\"")
+                    .addMember("\"UNNECESSARY_LATEINIT\"")
+                    .addMember("\"UNNECESSARY_SAFE_CALL\"")
+                    .addMember("\"USELESS_ELVIS\"")
+                    .addMember("\"UNCHECKED_CAST\"")
+                    .addMember("\"UNUSED_EXPRESSION\"")
+                    .build()
+            )
+            .addImport("kotlinx.cinterop", "invoke")
+            .build()
+            .writeTo(outputDir)
 
     }
 
@@ -126,60 +131,62 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
         jvmClass.methods.filter { it.isNative }.forEach {
             val funBuilder = FunSpec.builder(it.name)
             funBuilder
-                    .addParameter("env", ClassName(japiPack, "JNIEnv"))
-                    .addParameter("thiz", ClassName(japiPack, "jobject"))
+                .addParameter("env", ClassName(japiPack, "JNIEnv"))
+                .addParameter("thiz", ClassName(japiPack, "jobject"))
             it.argumentTypes.forEachIndexed { idx, arg ->
                 val nullable = !it.isNotNullArg(idx)
                 funBuilder.addParameter(
-                        it.getArgName(idx),
-                        (jniTypeMapping[arg] ?: jobject).copy(nullable)
+                    it.getArgName(idx),
+                    (jniTypeMapping[arg] ?: jobject).copy(nullable)
                 )
             }
 
             addFunction(
-                    funBuilder
-                            .returns((jniTypeMapping[it.returnType] ?: jobject).copy(!it.isNotNullReturnType()))
-                            .addStatement(
-                                    """
+                funBuilder
+                    .returns((jniTypeMapping[it.returnType] ?: jobject).copy(!it.isNotNullReturnType()))
+                    .addStatement(
+                        """
      | return %T {   
-     |   val rlst =  %T(${it.argumentTypes
-                                            .mapIndexed { idx, arg -> j2nConvertor(arg, it.getArgName(idx)) }
-                                            .joinToString(separator = ",")})
+     |   val rlst =  %T(${
+                            it.argumentTypes
+                                .mapIndexed { idx, arg -> j2nConvertor(arg, it.getArgName(idx)) }
+                                .joinToString(separator = ",")
+                        })
      |   ${n2jConverter(it.returnType, "rlst")}
      |}    
  """.trimMargin(),
-                                    withJString,
-                                    ClassName(jvmClass.className, it.name)
-                            )
-                            .addAnnotation(
-                                    AnnotationSpec
-                                            .builder(CName)
-                                            .addMember("\"Java_${jvmClass.className.replace(".", "_")}_${it.name}\"")
-                                            .build()
-                            ).build()
+                        withJString,
+                        ClassName(jvmClass.className, it.name)
+                    )
+                    .addAnnotation(
+                        AnnotationSpec
+                            .builder(CName)
+                            .addMember("\"Java_${jvmClass.className.replace(".", "_")}_${it.name}\"")
+                            .build()
+                    ).build()
             )
         }
         return this
     }
 
     private fun Method.isNotNullReturnType() =
-            annotationEntries.any { it.annotationType.contains("NotNull") } || returnType is BasicType
+        annotationEntries.any { it.annotationType.contains("NotNull") } || returnType is BasicType
 
     private fun Method.isNotNullArg(idx: Int): Boolean {
         return parameterAnnotationEntries
-                .takeIf { it.isNotEmpty<ParameterAnnotationEntry?>() }
-                ?.get(idx)
-                ?.annotationEntries
-                ?.any { it.annotationType.contains("NotNull") } ?: false || argumentTypes[idx] is BasicType
+            .takeIf { it.isNotEmpty<ParameterAnnotationEntry?>() }
+            ?.get(idx)
+            ?.annotationEntries
+            ?.any { it.annotationType.contains("NotNull") } ?: false || argumentTypes[idx] is BasicType
     }
 
     private fun TypeSpec.Builder.addSelfMethod(): TypeSpec.Builder {
         return addFunction(
-                FunSpec
-                        .builder("self")
-                        .returns(jobject)
-                        .addStatement("return $objectRef")
-                        .build()
+            FunSpec
+                .builder("self")
+                .returns(jobject)
+                .addStatement("return $objectRef")
+                .build()
         )
 
     }
@@ -188,12 +195,12 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
         return if (!jvmClass.isKotlinObject()) {
             val paramName = "jb"
             addFunction(
-                    FunSpec.builder("invoke")
-                            .addParameter(paramName, jobject.copy(true))
-                            .returns(ClassName(jvmClass.packageName, objName).copy(true))
-                            .addModifiers(KModifier.OPERATOR)
-                            .addStatement("return if($paramName == null) null else ${jvmClass.packageName}.${objName}($paramName)")
-                            .build()
+                FunSpec.builder("invoke")
+                    .addParameter(paramName, jobject.copy(true))
+                    .returns(ClassName(jvmClass.packageName, objName).copy(true))
+                    .addModifiers(KModifier.OPERATOR)
+                    .addStatement("return if($paramName == null) null else ${jvmClass.packageName}.${objName}($paramName)")
+                    .build()
             )
 
             val classBuilder = TypeSpec.classBuilder(objName).addType(build()).addModifiers(KModifier.OPEN)
@@ -206,7 +213,7 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
                     val name = it.getArgName(inx)
                     val type = defineType(arg) ?: return@onEach
                     val builder = ParameterSpec
-                            .builder(name, if (arg is BasicType) type else type.copy(true))
+                        .builder(name, if (arg is BasicType) type else type.copy(true))
                     if (arg !is BasicType) {
                         builder.defaultValue("%S", null)
                     }
@@ -214,28 +221,28 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
                     n2jConverter(arg, name, false)
                 }.takeIf { it.isNotEmpty() }?.joinToString(prefix = ", ", separator = ", ") ?: ""
                 classBuilder.addFunction(
-                        constructorBuilder
-                                .addStatement("$objectRef = NewObject($classRef, ${it.ref()}$args)!!")
-                                .build()
+                    constructorBuilder
+                        .addStatement("$objectRef = NewObject($classRef, ${it.ref()}$args)!!")
+                        .build()
                 )
 
             }
             classBuilder.addFunction(
-                    FunSpec
-                            .constructorBuilder()
-                            .addParameter(paramName, jobject)
-                            .addStatement("$objectRef = $paramName")
-                            .build()
+                FunSpec
+                    .constructorBuilder()
+                    .addParameter(paramName, jobject)
+                    .addStatement("$objectRef = $paramName")
+                    .build()
             )
             classBuilder
         } else apply {
             addFunction(
-                    FunSpec.builder("invoke")
-                            .addParameter("ignored", jobject)
-                            .returns(ClassName(jvmClass.packageName, objName + "Stub"))
-                            .addModifiers(KModifier.OPERATOR)
-                            .addStatement("return this")
-                            .build()
+                FunSpec.builder("invoke")
+                    .addParameter("ignored", jobject)
+                    .returns(ClassName(jvmClass.packageName, objName + "Stub"))
+                    .addModifiers(KModifier.OPERATOR)
+                    .addStatement("return this")
+                    .build()
             )
         }
     }
@@ -244,7 +251,7 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
         return when (arg) {
             is BasicType -> when (arg) {
                 Type.CHAR -> "$name.toShort()" //in jni char === uShort
-                Type.BOOLEAN -> "if($name) 1.toByte() else 0.toByte()"
+                Type.BOOLEAN -> "if($name) 1.toUByte() else 0.toUByte()"
                 else -> name
             }
 
@@ -312,20 +319,20 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
     }
 
     private fun Method.getArgName(inx: Int) =
-            kotlin.runCatching { localVariableTable.getLocalVariable(inx + 1, 0).name }.getOrDefault("arg${inx + 1}")
+        kotlin.runCatching { localVariableTable.getLocalVariable(inx + 1, 0).name }.getOrDefault("arg${inx + 1}")
 
     val methodForExclude = setOf(
-            "<clinit>",
-            "equals",
-            "hashCode",
-            "compareTo",
-            "getClass"
+        "<clinit>",
+        "equals",
+        "hashCode",
+        "compareTo",
+        "getClass"
     )
 
     private fun TypeSpec.Builder.addMethods(
-            methods: List<Method>,
-            fields: List<Field>,
-            rr: Boolean = false
+        methods: List<Method>,
+        fields: List<Field>,
+        rr: Boolean = false
     ): TypeSpec.Builder {
         val fieldMapper = fields.associate { "get${it.name.capitalize()}" to it.name }
         methods.forEach {
@@ -351,28 +358,28 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
             methodToSignatureMapping[signature] = fieldName
             if (fieldMapper.contains(it.name)) {
                 addProperty(
-                        PropertySpec.builder(fieldMapper[it.name]!!, defineType(returnType)!!)
-                                .getter(
-                                        FunSpec.getterBuilder()
-                                                .addStatement(buildCallStatement(returnType, it))
-                                                .addStatement("return ${j2nConvertor(returnType, kniResult, nullable)}")
-                                                .build()
-                                )
+                    PropertySpec.builder(fieldMapper[it.name]!!, defineType(returnType)!!)
+                        .getter(
+                            FunSpec.getterBuilder()
+                                .addStatement(buildCallStatement(returnType, it))
+                                .addStatement("return ${j2nConvertor(returnType, kniResult, nullable)}")
                                 .build()
+                        )
+                        .build()
                 )
             } else {
                 defineType(returnType)?.let { rt ->
                     addFunction(
-                            funBuilder
-                                    .apply {
-                                        if (it.name == "toString" && it.argumentTypes.isEmpty()) {
-                                            addModifiers(KModifier.OVERRIDE)
-                                        }
-                                    }
-                                    .returns(rt.copy(nullable))
-                                    .addStatement(buildCallStatement(returnType, it))
-                                    .addStatement("return ${j2nConvertor(returnType, kniResult, nullable)}")
-                                    .build()
+                        funBuilder
+                            .apply {
+                                if (it.name == "toString" && it.argumentTypes.isEmpty()) {
+                                    addModifiers(KModifier.OVERRIDE)
+                                }
+                            }
+                            .returns(rt.copy(nullable))
+                            .addStatement(buildCallStatement(returnType, it))
+                            .addStatement("return ${j2nConvertor(returnType, kniResult, nullable)}")
+                            .build()
                     )
                 }
             }
@@ -383,24 +390,24 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
 
     private fun buildMethodRefProperty(name: String): PropertySpec {
         return PropertySpec
-                .builder(name, jmethodID)
-                .mutable()
-                .addModifiers(KModifier.PRIVATE, KModifier.LATEINIT)
-                .build()
+            .builder(name, jmethodID)
+            .mutable()
+            .addModifiers(KModifier.PRIVATE, KModifier.LATEINIT)
+            .build()
     }
 
     private fun buildCallStatement(
-            returnType: Type?,
-            method: Method
+        returnType: Type?,
+        method: Method
     ): String {
         val args = method.argumentTypes.mapIndexed { inx, arg -> n2jConverter(arg, method.getArgName(inx)) }
-                .takeIf { it.isNotEmpty() }?.joinToString(",\n", prefix = ",\n") { "          $it" } ?: ""
+            .takeIf { it.isNotEmpty() }?.joinToString(",\n", prefix = ",\n") { "          $it" } ?: ""
         val isStatic = method.isStatic
         val jniMethod = defineJniMethod(returnType, isStatic)
         val caller = if (isStatic) classRef else objectRef
         val postProcessor = if (method.isNotNullReturnType()) "!!" else "?: run { return null }"
         val methodId =
-                methodToSignatureMapping[method.signature] ?: error("can't map the method ID by ${method.signature}")
+            methodToSignatureMapping[method.signature] ?: error("can't map the method ID by ${method.signature}")
         return """
                  |val $kniResult = 
                  |    $jniMethod(
@@ -438,7 +445,7 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
             is ArrayType -> {
                 when (val basicType = type.basicType) {
                     is BasicType -> {
-                        val (kt, jvm) = arrayTypeMapping[basicType] ?: TODO(basicType.toString())
+                        val (kt, _) = arrayTypeMapping[basicType] ?: TODO(basicType.toString())
 
                         val isCharArray = kt.toString() == "kotlin.CharArray"
                         val kArrayName = if (isCharArray) "kotlin.ShortArray" else kt
@@ -477,41 +484,43 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
     }
 
     private fun TypeSpec.Builder.addObjectProperty(jvmClass: JavaClass) = addProperty(
-            PropertySpec
-                    .builder(objectRef, jobject)
-                    .addModifiers(KModifier.PRIVATE)
-                    .apply {
-                        if (jvmClass.isKotlinObject()) {
-                            getter(FunSpec.getterBuilder()
-                                    .addStatement("return GetStaticObjectField($classRef, $selfMethodId)!!")
-                                    .build())
-                        }
-                    }
-                    .build()
+        PropertySpec
+            .builder(objectRef, jobject)
+            .addModifiers(KModifier.PRIVATE)
+            .apply {
+                if (jvmClass.isKotlinObject()) {
+                    getter(
+                        FunSpec.getterBuilder()
+                            .addStatement("return GetStaticObjectField($classRef, $selfMethodId)!!")
+                            .build()
+                    )
+                }
+            }
+            .build()
     )
 
     private fun TypeSpec.Builder.addClassProperty(className: String): TypeSpec.Builder {
         return addProperty(
-                PropertySpec
-                        .builder(classRef, jclass)
-                        .addModifiers(KModifier.PRIVATE)
-                        .initializer("FindClass(\"$className\")!!")
-                        .build()
+            PropertySpec
+                .builder(classRef, jclass)
+                .addModifiers(KModifier.PRIVATE)
+                .initializer("FindClass(\"$className\")!!")
+                .build()
         )
     }
 
 
     private fun TypeSpec.Builder.addSelfMethodProperty(className: String, jvmClass: JavaClass): TypeSpec.Builder {
         return addProperty(
-                PropertySpec
-                        .builder(selfMethodId, jfieldID.copy(nullable = true))
-                        .apply {
-                            if (jvmClass.isKotlinObject()) {
-                                initializer("GetStaticFieldID($classRef, \"INSTANCE\", \"L$className;\")")
-                            }
-                        }
-                        .mutable()
-                        .build()
+            PropertySpec
+                .builder(selfMethodId, jfieldID.copy(nullable = true))
+                .apply {
+                    if (jvmClass.isKotlinObject()) {
+                        initializer("GetStaticFieldID($classRef, \"INSTANCE\", \"L$className;\")")
+                    }
+                }
+                .mutable()
+                .build()
         )
     }
 
@@ -545,8 +554,8 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
                     generate(ClassParser(cls.classSource(), cls.name).parse(), true)
                 }
                 ClassName(
-                        returnType.className.substringBeforeLast("."),
-                        returnType.className.substringAfterLast(".")
+                    returnType.className.substringBeforeLast("."),
+                    returnType.className.substringAfterLast(".")
                 ).copy(true)
             } else Any::class.asTypeName().copy(true)
         }
@@ -556,10 +565,10 @@ class Generator(private val outputDir: File, private val isExperimentalEnabled: 
 
     private fun JavaClass.allowedMethods(): List<Method> {
         return methods
-                .filter { !it.isPrivate }
-                .filter { !it.isNative }
-                .filter { meth -> methodForExclude.none { it == meth.name } }
-                .filter { !it.ref().contains("$") }
+            .filter { !it.isPrivate }
+            .filter { !it.isNative }
+            .filter { meth -> methodForExclude.none { it == meth.name } }
+            .filter { !it.ref().contains("$") }
     }
 
     private fun JavaClass.staticMethods(): List<Method> {
