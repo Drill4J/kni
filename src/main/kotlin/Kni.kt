@@ -4,7 +4,6 @@ import com.epam.drill.kni.*
 import org.apache.bcel.classfile.*
 import org.gradle.api.*
 import org.gradle.api.internal.plugins.*
-import org.gradle.kotlin.dsl.*
 import org.jetbrains.kotlin.gradle.dsl.*
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
@@ -27,15 +26,20 @@ open class KniPlugin : Plugin<Project> {
             val kotlinExt = extensions.getByName("kotlin") as KotlinProjectExtension
             kotlinExtDsl = DslObject(kotlinExt)
 
-            val generateNativeClasses by tasks.registering {
-                group = "kni"
-                doLast {
+            val generateNativeClasses = project.task("generateNativeClasses") {
+                it.group = "kni"
+                it.doLast {
                     val config = config()
                     val outputDir = file(config.srcDir)
                     val gen = Generator(outputDir)
                     config.additionalJavaClasses.forEach {
                         val cls = Class.forName(it)
-                        gen.generate(ClassParser(cls.getResourceAsStream("/" + it.replace(".", "/").suffix("class")), cls.name).parse())
+                        gen.generate(
+                            ClassParser(
+                                cls.getResourceAsStream("/" + it.replace(".", "/").suffix("class")),
+                                cls.name
+                            ).parse()
+                        )
                     }
 
                     config.jvmtiAgentObjectPath?.let {
@@ -45,17 +49,17 @@ open class KniPlugin : Plugin<Project> {
 
                     config.jvmTargets.forEach {
                         val map = it.mainCompilation.compileDependencyFiles
-                                .filter { it.extension == "jar" }
-                                .map {
-                                    JarFile(it).use { jar ->
-                                        jar.entries().asSequence().toList()
-                                                .filter { !it.isDirectory && it.name.contains(".class") }
-                                                .map { jar.getInputStream(it).readBytes() }
-                                    }
-                                }.flatten() + it.mainCompilation.compileKotlinTask.outputs.files.singleFile
-                                .walkTopDown()
-                                .filter { it.isFile && it.extension == "class" }
-                                .map { it.inputStream().readBytes() }
+                            .filter { it.extension == "jar" }
+                            .map {
+                                JarFile(it).use { jar ->
+                                    jar.entries().asSequence().toList()
+                                        .filter { !it.isDirectory && it.name.contains(".class") }
+                                        .map { jar.getInputStream(it).readBytes() }
+                                }
+                            }.flatten() + it.mainCompilation.compileKotlinTask.outputs.files.singleFile
+                            .walkTopDown()
+                            .filter { it.isFile && it.extension == "class" }
+                            .map { it.inputStream().readBytes() }
                         map.forEach {
                             val jvmClass = ClassParser(it.inputStream(), "").parse()
                             if (jvmClass.annotationEntries.any { allowedAnnotations.contains(it.annotationType) }) {
@@ -67,13 +71,13 @@ open class KniPlugin : Plugin<Project> {
                 }
             }
             @Suppress("UNCHECKED_CAST") val targets =
-                    kotlinExtDsl.extensions.getByName("targets") as NamedDomainObjectCollection<KotlinTarget>
+                kotlinExtDsl.extensions.getByName("targets") as NamedDomainObjectCollection<KotlinTarget>
             targets.jvmTargets().all {
-                val compileKotlinTask = mainCompilation.compileKotlinTask
-                generateNativeClasses.get().dependsOn(compileKotlinTask)
+                val compileKotlinTask = it.mainCompilation.compileKotlinTask
+                generateNativeClasses.dependsOn(compileKotlinTask)
             }
             targets.nativeTargets().all {
-                commonCompilation?.defaultSourceSet {
+                it.commonCompilation?.defaultSourceSet {
                     kotlin.srcDir(file(config().srcDir).apply { mkdirs() })
                 }
             }
@@ -87,27 +91,28 @@ open class KniPlugin : Plugin<Project> {
 }
 
 fun NamedDomainObjectCollection<KotlinTarget>.nativeTargets(
-        matcher: KotlinNativeTarget.() -> Boolean = { true }
-) = withType(KotlinNativeTarget::class).matching(matcher)
+    matcher: KotlinNativeTarget.() -> Boolean = { true }
+) = withType(KotlinNativeTarget::class.java).matching(matcher)
 
 
 fun NamedDomainObjectCollection<KotlinTarget>.jvmTargets(
-        matcher: KotlinJvmTarget.() -> Boolean = { true }
-) = withType(KotlinJvmTarget::class).matching(matcher)
+    matcher: KotlinJvmTarget.() -> Boolean = { true }
+) = withType(KotlinJvmTarget::class.java).matching(matcher)
 
 val KotlinTarget.mainCompilation: KotlinCompilation<*>
-    get() = compilations[KotlinCompilation.MAIN_COMPILATION_NAME]
+    get() = compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
 
 val KotlinNativeTarget.commonCompilation: KotlinNativeCompilation?
     get() = compilations.firstOrNull { it.name == "common" }
 
 open class KniExt(
-        private val targets: NamedDomainObjectCollection<KotlinTarget>
+    private val targets: NamedDomainObjectCollection<KotlinTarget>
 ) {
     var additionalJavaClasses: Sequence<String> = sequenceOf()
     var jvmTargets: Sequence<KotlinJvmTarget> = sequenceOf()
-    var nativeCrossCompileTarget =
-            lazy { targets.nativeTargets().first { it.commonCompilation != null }.commonCompilation }
+    var nativeCrossCompileTarget = lazy {
+        targets.nativeTargets().first { it.commonCompilation != null }.commonCompilation
+    }
     var srcDir: String = "src/kni/kotlin"
     var jvmtiAgentObjectPath: String? = null
 
