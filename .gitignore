@@ -1,3 +1,5 @@
 build/
-.idea/
+**/.idea/*
+!/.idea/codeStyles
+!/.idea/fileTemplates
 .gradle/
